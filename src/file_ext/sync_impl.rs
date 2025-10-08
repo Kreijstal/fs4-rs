@@ -36,7 +36,6 @@ macro_rules! file_ext {
             /// file, and the file size is at least `len` bytes. After a successful call
             /// to `allocate`, subsequent writes to the file within the specified length
             /// are guaranteed not to fail because of lack of disk space.
-            #[cfg(not(target_os = "cygwin"))]
             fn allocate(&self, len: u64) -> Result<()>;
 
             /// Locks the file for shared usage, blocking if the file is currently
@@ -67,7 +66,6 @@ macro_rules! file_ext {
             fn allocated_size(&self) -> Result<u64> {
                 sys::allocated_size(self)
             }
-            #[cfg(not(target_os = "cygwin"))]
             fn allocate(&self, len: u64) -> Result<()> {
                 sys::allocate(self, len)
             }
@@ -220,7 +218,6 @@ macro_rules! test_mod {
 
             /// Tests file allocation.
             #[test]
-            #[cfg(not(target_os = "cygwin"))]
             fn allocate() {
                 let tempdir = tempfile::TempDir::with_prefix("fs4").unwrap();
                 let path = tempdir.path().join("fs4");
@@ -291,7 +288,6 @@ macro_rules! test_mod {
             /// Benchmarks creating a file, allocating 32MiB for it, and deleting it.
             #[cfg(nightly)]
             #[bench]
-            #[cfg(not(target_os = "cygwin"))]
             fn bench_file_allocate(b: &mut test::Bencher) {
                 let size = 32 * 1024 * 1024;
                 let tempdir = tempfile::TempDir::with_prefix("fs4").unwrap();
@@ -313,7 +309,6 @@ macro_rules! test_mod {
             /// Benchmarks creating a file, allocating 32MiB for it, and deleting it.
             #[cfg(nightly)]
             #[bench]
-            #[cfg(not(target_os = "cygwin"))]
             fn bench_allocated_size(b: &mut test::Bencher) {
                 let size = 32 * 1024 * 1024;
                 let tempdir = tempfile::TempDir::with_prefix("fs4").unwrap();
