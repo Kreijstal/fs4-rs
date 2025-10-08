@@ -36,6 +36,7 @@ macro_rules! async_file_ext {
             /// file, and the file size is at least `len` bytes. After a successful call
             /// to `allocate`, subsequent writes to the file within the specified length
             /// are guaranteed not to fail because of lack of disk space.
+            #[cfg(not(target_os = "cygwin"))]
             fn allocate(&self, len: u64) -> impl core::future::Future<Output = Result<()>>;
 
             /// Locks the file for shared usage, blocking if the file is currently
@@ -72,6 +73,7 @@ macro_rules! async_file_ext {
             async fn allocated_size(&self) -> Result<u64> {
                 sys::allocated_size(self).await
             }
+            #[cfg(not(target_os = "cygwin"))]
             async fn allocate(&self, len: u64) -> Result<()> {
                 sys::allocate(self, len).await
             }
@@ -147,14 +149,12 @@ macro_rules! test_mod {
                 // Concurrent shared access is OK, but not shared and exclusive.
                 file1.lock_shared().unwrap();
                 file2.lock_shared().unwrap();
-                assert_eq!(
-                    file3.try_lock_exclusive().unwrap(),
-                    false,
+                assert!(
+                    file3.try_lock_exclusive().is_err(),
                 );
                 file1.unlock().unwrap();
-                assert_eq!(
-                    file3.try_lock_exclusive().unwrap(),
-                    false,
+                assert!(
+                    file3.try_lock_exclusive().is_err(),
                 );
 
                 // Once all shared file locks are dropped, an exclusive lock may be created;
@@ -184,13 +184,11 @@ macro_rules! test_mod {
 
                 // No other access is possible once an exclusive lock is created.
                 file1.lock_exclusive().unwrap();
-                assert_eq!(
-                    file2.try_lock_exclusive().unwrap(),
-                    false,
+                assert!(
+                    file2.try_lock_exclusive().is_err(),
                 );
-                assert_eq!(
-                    file2.try_lock_shared().unwrap(),
-                    false,
+                assert!(
+                    file2.try_lock_shared().is_err(),
                 );
 
                 // Once the exclusive lock is dropped, the second file is able to create a lock.
@@ -219,9 +217,8 @@ macro_rules! test_mod {
                     .unwrap();
 
                 file1.lock_exclusive().unwrap();
-                assert_eq!(
-                    file2.try_lock_shared().unwrap(),
-                    false,
+                assert!(
+                    file2.try_lock_shared().is_err(),
                 );
 
                 // Drop file1; the lock should be released.
@@ -231,6 +228,7 @@ macro_rules! test_mod {
 
             /// Tests file allocation.
             #[$annotation]
+            #[cfg(not(target_os = "cygwin"))]
             async fn allocate() {
                 let tempdir = tempfile::TempDir::with_prefix("fs4").unwrap();
                 let path = tempdir.path().join("fs4");
