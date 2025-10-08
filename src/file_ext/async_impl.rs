@@ -36,7 +36,6 @@ macro_rules! async_file_ext {
             /// file, and the file size is at least `len` bytes. After a successful call
             /// to `allocate`, subsequent writes to the file within the specified length
             /// are guaranteed not to fail because of lack of disk space.
-            #[cfg(not(target_os = "cygwin"))]
             fn allocate(&self, len: u64) -> impl core::future::Future<Output = Result<()>>;
 
             /// Locks the file for shared usage, blocking if the file is currently
@@ -73,7 +72,6 @@ macro_rules! async_file_ext {
             async fn allocated_size(&self) -> Result<u64> {
                 sys::allocated_size(self).await
             }
-            #[cfg(not(target_os = "cygwin"))]
             async fn allocate(&self, len: u64) -> Result<()> {
                 sys::allocate(self, len).await
             }
@@ -228,7 +226,6 @@ macro_rules! test_mod {
 
             /// Tests file allocation.
             #[$annotation]
-            #[cfg(not(target_os = "cygwin"))]
             async fn allocate() {
                 let tempdir = tempfile::TempDir::with_prefix("fs4").unwrap();
                 let path = tempdir.path().join("fs4");

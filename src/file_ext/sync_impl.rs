@@ -36,7 +36,6 @@ macro_rules! file_ext {
             /// file, and the file size is at least `len` bytes. After a successful call
             /// to `allocate`, subsequent writes to the file within the specified length
             /// are guaranteed not to fail because of lack of disk space.
-            #[cfg(not(target_os = "cygwin"))]
             fn allocate(&self, len: u64) -> Result<()>;
 
             /// Locks the file for shared usage, blocking if the file is currently
@@ -67,7 +66,6 @@ macro_rules! file_ext {
             fn allocated_size(&self) -> Result<u64> {
                 sys::allocated_size(self)
             }
-            #[cfg(not(target_os = "cygwin"))]
             fn allocate(&self, len: u64) -> Result<()> {
                 sys::allocate(self, len)
             }
@@ -95,10 +93,12 @@ macro_rules! test_mod {
         #[cfg(test)]
         mod test {
             extern crate tempfile;
+            #[cfg(nightly)]
+            extern crate test;
 
-            use super::*;
             use crate::{
-                statvfs, FsStats,
+                allocation_granularity, available_space, free_space, statvfs,
+                total_space, FsStats,
             };
 
             $(
@@ -135,12 +135,14 @@ macro_rules! test_mod {
                 // Concurrent shared access is OK, but not shared and exclusive.
                 file1.lock_shared().unwrap();
                 file2.lock_shared().unwrap();
-                assert!(
-                    file3.try_lock_exclusive().is_err(),
+                assert_eq!(
+                    FileExt::try_lock_exclusive(&file3).unwrap(),
+                    false,
                 );
                 file1.unlock().unwrap();
-                assert!(
-                    file3.try_lock_exclusive().is_err(),
+                assert_eq!(
+                    FileExt::try_lock_exclusive(&file3).unwrap(),
+                    false,
                 );
 
                 // Once all shared file locks are dropped, an exclusive lock may be created;
@@ -170,11 +172,13 @@ macro_rules! test_mod {
 
                 // No other access is possible once an exclusive lock is created.
                 file1.lock_exclusive().unwrap();
-                assert!(
-                    file2.try_lock_exclusive().is_err(),
+                assert_eq!(
+                    FileExt::try_lock_exclusive(&file2).unwrap(),
+                    false,
                 );
-                assert!(
-                    file2.try_lock_shared().is_err(),
+                assert_eq!(
+                    FileExt::try_lock_shared(&file2).unwrap(),
+                    false
                 );
 
                 // Once the exclusive lock is dropped, the second file is able to create a lock.
@@ -214,7 +218,6 @@ macro_rules! test_mod {
 
             /// Tests file allocation.
             #[test]
-            #[cfg(not(target_os = "cygwin"))]
             fn allocate() {
                 let tempdir = tempfile::TempDir::with_prefix("fs4").unwrap();
                 let path = tempdir.path().join("fs4");
@@ -259,6 +262,119 @@ macro_rules! test_mod {
                 assert!(total_space > free_space);
                 assert!(total_space > available_space);
                 assert!(available_space <= free_space);
+            }
+
+            /// Benchmarks creating a file, truncating it to 32MiB, and deleting it.
+            #[cfg(nightly)]
+            #[bench]
+            fn bench_file_truncate(b: &mut test::Bencher) {
+                let size = 32 * 1024 * 1024;
+                let tempdir = tempfile::TempDir::with_prefix("fs4").unwrap();
+                let path = tempdir.path().join("file");
+
+                b.iter(|| {
+                    let file = fs::OpenOptions::new()
+                        .read(true)
+                        .write(true)
+                        .create(true)
+                        .truncate(true)
+                        .open(&path)
+                        .unwrap();
+                    file.set_len(size).unwrap();
+                    fs::remove_file(&path).unwrap();
+                });
+            }
+
+            /// Benchmarks creating a file, allocating 32MiB for it, and deleting it.
+            #[cfg(nightly)]
+            #[bench]
+            fn bench_file_allocate(b: &mut test::Bencher) {
+                let size = 32 * 1024 * 1024;
+                let tempdir = tempfile::TempDir::with_prefix("fs4").unwrap();
+                let path = tempdir.path().join("file");
+
+                b.iter(|| {
+                    let file = fs::OpenOptions::new()
+                        .read(true)
+                        .write(true)
+                        .create(true)
+                        .truncate(true)
+                        .open(&path)
+                        .unwrap();
+                    file.allocate(size).unwrap();
+                    fs::remove_file(&path).unwrap();
+                });
+            }
+
+            /// Benchmarks creating a file, allocating 32MiB for it, and deleting it.
+            #[cfg(nightly)]
+            #[bench]
+            fn bench_allocated_size(b: &mut test::Bencher) {
+                let size = 32 * 1024 * 1024;
+                let tempdir = tempfile::TempDir::with_prefix("fs4").unwrap();
+                let path = tempdir.path().join("file");
+                let file = fs::OpenOptions::new()
+                    .read(true)
+                    .write(true)
+                    .create(true)
+                    .truncate(true)
+                    .open(path)
+                    .unwrap();
+                file.allocate(size).unwrap();
+
+                b.iter(|| {
+                    file.allocated_size().unwrap();
+                });
+            }
+
+            /// Benchmarks locking and unlocking a file lock.
+            #[cfg(nightly)]
+            #[bench]
+            fn bench_lock_unlock(b: &mut test::Bencher) {
+                let tempdir = tempfile::TempDir::with_prefix("fs4").unwrap();
+                let path = tempdir.path().join("fs4");
+                let file = fs::OpenOptions::new()
+                    .read(true)
+                    .write(true)
+                    .create(true)
+                    .truncate(true)
+                    .open(path)
+                    .unwrap();
+
+                b.iter(|| {
+                    file.lock_exclusive().unwrap();
+                    file.unlock().unwrap();
+                });
+            }
+
+            /// Benchmarks the free space method.
+            #[cfg(nightly)]
+            #[bench]
+            fn bench_free_space(b: &mut test::Bencher) {
+                let tempdir = tempfile::TempDir::with_prefix("fs4").unwrap();
+                b.iter(|| {
+                    test::black_box(free_space(tempdir.path()).unwrap());
+                });
+            }
+
+            /// Benchmarks the available space method.
+            #[cfg(nightly)]
+            #[bench]
+            fn bench_available_space(b: &mut test::Bencher) {
+                let tempdir = tempfile::TempDir::with_prefix("fs4").unwrap();
+                b.iter(|| {
+                    test::black_box(available_space(tempdir.path()).unwrap());
+                });
+            }
+
+            /// Benchmarks the total space method.
+            #[cfg(nightly)]
+            #[bench]
+            fn bench_total_space(b: &mut test::Bencher) {
+                let tempdir = tempfile::TempDir::with_prefix("fs4").unwrap();
+                b.iter(|| {
+                    test::black_box(total_space(tempdir.path()).unwrap());
+                });
             }
 
         }

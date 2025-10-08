@@ -49,6 +49,9 @@ tempfile = "3"
 tokio = { version = "1", features = ["full"] }
 libc = "0.2"
 
+[build-dependencies]
+rustc_version = "0.4"
+
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]

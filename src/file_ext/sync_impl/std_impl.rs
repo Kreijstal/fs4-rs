@@ -7,5 +7,6 @@ use std::fs::File;
 file_ext!(File, "std::fs::File");
 
 test_mod! {
+  use crate::fs_std::FileExt;
   use std::fs;
 }
