@@ -264,6 +264,26 @@ macro_rules! test_mod {
                 assert!(available_space <= free_space);
             }
 
+            /// Benchmarks creating and removing a file. This is a baseline benchmark
+            /// for comparing against the truncate and allocate benchmarks.
+            #[cfg(nightly)]
+            #[bench]
+            fn bench_file_create(b: &mut test::Bencher) {
+                let tempdir = tempfile::TempDir::with_prefix("fs4").unwrap();
+                let path = tempdir.path().join("file");
+
+                b.iter(|| {
+                    fs::OpenOptions::new()
+                        .read(true)
+                        .write(true)
+                        .create(true)
+                        .truncate(true)
+                        .open(&path)
+                        .unwrap();
+                    fs::remove_file(&path).unwrap();
+                });
+            }
+
             /// Benchmarks creating a file, truncating it to 32MiB, and deleting it.
             #[cfg(nightly)]
             #[bench]
