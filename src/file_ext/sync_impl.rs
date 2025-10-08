@@ -95,6 +95,7 @@ macro_rules! test_mod {
         #[cfg(test)]
         mod test {
             extern crate tempfile;
+            #[cfg(nightly)]
             extern crate test;
 
             use crate::{
@@ -267,6 +268,7 @@ macro_rules! test_mod {
             }
 
             /// Benchmarks creating a file, truncating it to 32MiB, and deleting it.
+            #[cfg(nightly)]
             #[bench]
             fn bench_file_truncate(b: &mut test::Bencher) {
                 let size = 32 * 1024 * 1024;
@@ -287,6 +289,7 @@ macro_rules! test_mod {
             }
 
             /// Benchmarks creating a file, allocating 32MiB for it, and deleting it.
+            #[cfg(nightly)]
             #[bench]
             #[cfg(not(target_os = "cygwin"))]
             fn bench_file_allocate(b: &mut test::Bencher) {
@@ -308,6 +311,7 @@ macro_rules! test_mod {
             }
 
             /// Benchmarks creating a file, allocating 32MiB for it, and deleting it.
+            #[cfg(nightly)]
             #[bench]
             #[cfg(not(target_os = "cygwin"))]
             fn bench_allocated_size(b: &mut test::Bencher) {
@@ -329,6 +333,7 @@ macro_rules! test_mod {
             }
 
             /// Benchmarks locking and unlocking a file lock.
+            #[cfg(nightly)]
             #[bench]
             fn bench_lock_unlock(b: &mut test::Bencher) {
                 let tempdir = tempfile::TempDir::with_prefix("fs4").unwrap();
@@ -348,6 +353,7 @@ macro_rules! test_mod {
             }
 
             /// Benchmarks the free space method.
+            #[cfg(nightly)]
             #[bench]
             fn bench_free_space(b: &mut test::Bencher) {
                 let tempdir = tempfile::TempDir::with_prefix("fs4").unwrap();
@@ -357,6 +363,7 @@ macro_rules! test_mod {
             }
 
             /// Benchmarks the available space method.
+            #[cfg(nightly)]
             #[bench]
             fn bench_available_space(b: &mut test::Bencher) {
                 let tempdir = tempfile::TempDir::with_prefix("fs4").unwrap();
@@ -366,6 +373,7 @@ macro_rules! test_mod {
             }
 
             /// Benchmarks the total space method.
+            #[cfg(nightly)]
             #[bench]
             fn bench_total_space(b: &mut test::Bencher) {
                 let tempdir = tempfile::TempDir::with_prefix("fs4").unwrap();
