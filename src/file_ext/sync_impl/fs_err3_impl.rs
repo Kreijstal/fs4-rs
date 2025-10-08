@@ -7,5 +7,6 @@ use fs_err3::File;
 file_ext!(File, "fs_err::File");
 
 test_mod! {
+  use crate::fs_err3::FileExt;
   use fs_err3 as fs;
 }
